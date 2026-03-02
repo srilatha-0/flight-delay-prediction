@@ -1,33 +1,22 @@
-# model.py
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 import joblib
-from preprocessing import preprocessor, categorical_features, numerical_features
+import boto3
+from io import BytesIO
+from preprocessing import preprocessor
 
-# Create classifier pipeline
-clf_pipeline = Pipeline([
-    ("preprocessor", preprocessor),
-    ("classifier", RandomForestClassifier(
-        n_estimators=100, max_depth=10, class_weight="balanced", random_state=42
-    ))
-])
+# ---------- S3 CONFIG ----------
+BUCKET_NAME = "predict"
+CLF_FILE = "clf_pipeline.pkl"
+REG_FILE = "reg_pipeline.pkl"
 
-# Create regressor pipeline
-reg_pipeline = Pipeline([
-    ("preprocessor", preprocessor),
-    ("regressor", RandomForestRegressor(
-        n_estimators=100, max_depth=10, random_state=42
-    ))
-])
-
-def train_save_pipelines(X_train, y_class_train, y_reg_train):
-    clf_pipeline.fit(X_train, y_class_train)
-    reg_pipeline.fit(X_train, y_reg_train)
-    joblib.dump(clf_pipeline, "clf_pipeline.pkl")
-    joblib.dump(reg_pipeline, "reg_pipeline.pkl")
-    return clf_pipeline, reg_pipeline
+s3 = boto3.client("s3")
 
 def load_pipelines():
-    clf = joblib.load("clf_pipeline.pkl")
-    reg = joblib.load("reg_pipeline.pkl")
+    clf_obj = s3.get_object(Bucket=BUCKET_NAME, Key=CLF_FILE)
+    reg_obj = s3.get_object(Bucket=BUCKET_NAME, Key=REG_FILE)
+
+    clf = joblib.load(BytesIO(clf_obj["Body"].read()))
+    reg = joblib.load(BytesIO(reg_obj["Body"].read()))
+
     return clf, reg
